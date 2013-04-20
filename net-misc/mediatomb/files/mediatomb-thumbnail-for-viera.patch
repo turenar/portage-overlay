@@ -1,0 +1,56 @@
+*** ./src/cds_resource_manager.cc.20120710	2012-07-11 12:17:49.000000000 +0900
+--- ./src/cds_resource_manager.cc	2012-07-11 12:17:29.000000000 +0900
+***************
+*** 129,134 ****
+--- 129,136 ----
+      int realCount = 0;
+      bool hide_original_resource = false;
+      int original_resource = 0;
++     bool seekable = false;
++     bool transcoding = false;
+      
+      Ref<UrlBase> urlBase_tr;
+  
+***************
+*** 218,223 ****
+--- 220,228 ----
+  
+              if (tp->isSeekable()) {
+                  t_res->addOption(_(RESOURCE_OPTION_SEEKABLE), _("true"));
++                 seekable = true;
++             } else {
++                 transcoding = true;
+              }
+  
+              if (!tp->isThumbnail())
+***************
+*** 467,478 ****
+  
+  #ifdef EXTERNAL_TRANSCODING
+          // This profile supports time-based seeking, so 10
+!         if (!isExtThumbnail && transcoded && string_ok(item->getResource(i)->getOption(_(RESOURCE_OPTION_SEEKABLE))))
+              extend = extend + D_OP + "=10;" +
+                       D_CONVERSION_INDICATOR + "=" D_CONVERSION;
+          // we do not support seeking at all, so 00
+          // and the media is converted, so set CI to 1
+!         else if (!isExtThumbnail && transcoded)
+          {
+              extend = extend + D_OP + "=00;" + 
+                       D_CONVERSION_INDICATOR + "=" D_CONVERSION;
+--- 472,487 ----
+  
+  #ifdef EXTERNAL_TRANSCODING
+          // This profile supports time-based seeking, so 10
+! //        if (!isExtThumbnail && transcoded && string_ok(item->getResource(i)->getOption(_(RESOURCE_OPTION_SEEKABLE))))
+!         if ((!isExtThumbnail && transcoded && string_ok(item->getResource(i)->getOption(_(RESOURCE_OPTION_SEEKABLE)))) ||
+!             (!isExtThumbnail && seekable && item->getResource(i)->getOption(_(RESOURCE_CONTENT_TYPE)) == THUMBNAIL))
+              extend = extend + D_OP + "=10;" +
+                       D_CONVERSION_INDICATOR + "=" D_CONVERSION;
+          // we do not support seeking at all, so 00
+          // and the media is converted, so set CI to 1
+! //        else if (!isExtThumbnail && transcoded)
+!         else if ((!isExtThumbnail && transcoded) ||
+!                  (!isExtThumbnail && transcoding && item->getResource(i)->getOption(_(RESOURCE_CONTENT_TYPE)) == THUMBNAIL))
+          {
+              extend = extend + D_OP + "=00;" + 
+                       D_CONVERSION_INDICATOR + "=" D_CONVERSION;

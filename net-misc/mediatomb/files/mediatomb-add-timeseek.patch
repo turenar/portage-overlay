@@ -1,0 +1,542 @@
+Index: src/config_manager.cc
+===================================================================
+--- src/config_manager.cc	(revision 2102)
++++ src/config_manager.cc	(working copy)
+@@ -2814,6 +2814,16 @@
+ 
+         prof->setArguments(param);
+ 
++        param = sub->getAttribute(_("can-seek"));
++        if (!validateYesNo(param))
++            throw _Exception(_("Error in config file: incorrect parameter "
++                        "for <agent can-seek=\"\" /> attribute"));
++
++        if (param == "yes")
++            prof->setSeekable(true);
++        else
++            prof->setSeekable(false);
++
+         sub = child->getChildByName(_("buffer")); 
+         if (sub == nil)
+             throw _Exception(_("error in configuration: transcoding "
+Index: src/transcoding/transcoding.cc
+===================================================================
+--- src/transcoding/transcoding.cc	(revision 2102)
++++ src/transcoding/transcoding.cc	(working copy)
+@@ -54,6 +54,7 @@
+     force_chunked = true;
+     hide_orig_res = false;
+     thumbnail = false;
++    can_seek = false;
+     sample_frequency = SOURCE; // keep original
+     number_of_channels = SOURCE;
+     attributes = Ref<Dictionary>(new Dictionary());
+Index: src/transcoding/transcoding.h
+===================================================================
+--- src/transcoding/transcoding.h	(revision 2102)
++++ src/transcoding/transcoding.h	(working copy)
+@@ -113,6 +113,12 @@
+     /// \brief retrieves the argument string
+     zmm::String getArguments() { return args; }
+ 
++    /// \brief sets whether this transcoder can do time-based seek
++    void setSeekable(bool can_seek) { this->can_seek = can_seek; }
++
++    /// \brief checks to see if the transcoder can do time-based seek
++    bool isSeekable() { return can_seek; }
++
+     /// \brief identifies if the profile should be set as the first resource
+     void setFirstResource(bool fr) { first_resource = fr; }
+     bool firstResource() { return first_resource; }
+@@ -195,6 +201,7 @@
+     bool hide_orig_res;
+     bool thumbnail;
+     bool force_chunked;
++    bool can_seek;
+     size_t buffer_size;
+     size_t chunk_size;
+     size_t initial_fill_size;
+Index: src/transcoding/transcode_ext_handler.cc
+===================================================================
+--- src/transcoding/transcode_ext_handler.cc	(revision 2102)
++++ src/transcoding/transcode_ext_handler.cc	(working copy)
+@@ -82,7 +82,8 @@
+ Ref<IOHandler> TranscodeExternalHandler::open(Ref<TranscodingProfile> profile, 
+                                               String location, 
+                                               Ref<CdsObject> obj, 
+-                                              struct File_Info *info)
++                                              struct File_Info *info,
++                                              float seek_pos)
+ {
+     bool isURL = false;
+ //    bool is_srt = false;
+@@ -327,8 +328,12 @@
+     }
+         
+     chmod(fifo_name.c_str(), S_IWUSR | S_IRUSR);
+-   
+-    arglist = parseCommandLine(profile->getArguments(), location, fifo_name);
++  
++    if (seek_pos < 0) {
++        log_debug("Warning: negative seek %f requested, ignoring\n", seek_pos);
++        seek_pos = 0;
++    }
++    arglist = parseCommandLine(profile->getArguments(), location, fifo_name, seek_pos);
+ 
+     log_info("Arguments: %s\n", profile->getArguments().c_str());
+     Ref<TranscodingProcessExecutor> main_proc(new TranscodingProcessExecutor(profile->getCommand(), arglist));
+Index: src/transcoding/transcode_ext_handler.h
+===================================================================
+--- src/transcoding/transcode_ext_handler.h	(revision 2102)
++++ src/transcoding/transcode_ext_handler.h	(working copy)
+@@ -43,7 +43,8 @@
+     virtual zmm::Ref<IOHandler> open(zmm::Ref<TranscodingProfile> profile, 
+                                      zmm::String location,
+                                      zmm::Ref<CdsObject> obj, 
+-                                     struct File_Info *info);
++                                     struct File_Info *info,
++                                     float seek_pos=0);
+ };
+ 
+ 
+Index: src/transcoding/transcode_handler.h
+===================================================================
+--- src/transcoding/transcode_handler.h	(revision 2102)
++++ src/transcoding/transcode_handler.h	(working copy)
+@@ -45,7 +45,8 @@
+     virtual zmm::Ref<IOHandler> open(zmm::Ref<TranscodingProfile> profile, 
+                                      zmm::String location,
+                                      zmm::Ref<CdsObject> obj, 
+-                                     struct File_Info *info) = 0;
++                                     struct File_Info *info,
++                                     float seek_pos=0) = 0;
+ protected:
+     enum { UNKNOWN_CONTENT_LENGTH = -1 };
+ };
+Index: src/transcoding/transcode_dispatcher.cc
+===================================================================
+--- src/transcoding/transcode_dispatcher.cc	(revision 2102)
++++ src/transcoding/transcode_dispatcher.cc	(working copy)
+@@ -51,7 +51,8 @@
+ Ref<IOHandler> TranscodeDispatcher::open(Ref<TranscodingProfile> profile, 
+                                          String location, 
+                                          Ref<CdsObject> obj, 
+-                                         struct File_Info *info)
++                                         struct File_Info *info,
++                                         float seek_pos)
+ {
+     if (profile == nil)
+         throw _Exception(_("Transcoding of file ") + location +
+@@ -62,7 +63,7 @@
+     if (profile->getType() == TR_External)
+     {
+         Ref<TranscodeExternalHandler> tr_ext(new TranscodeExternalHandler());
+-        return tr_ext->open(profile, location, obj, info);
++        return tr_ext->open(profile, location, obj, info, seek_pos);
+     }
+     else
+         throw _Exception(_("Unknown transcoding type for profile ") + 
+Index: src/transcoding/transcode_dispatcher.h
+===================================================================
+--- src/transcoding/transcode_dispatcher.h	(revision 2102)
++++ src/transcoding/transcode_dispatcher.h	(working copy)
+@@ -42,7 +42,8 @@
+     virtual zmm::Ref<IOHandler> open(zmm::Ref<TranscodingProfile> profile, 
+                                      zmm::String location,
+                                      zmm::Ref<CdsObject> obj, 
+-                                     struct File_Info *info);
++                                     struct File_Info *info,
++                                     float seek_pos=0);
+ };
+ 
+ 
+Index: src/tools.cc
+===================================================================
+--- src/tools.cc	(revision 2102)
++++ src/tools.cc	(working copy)
+@@ -1209,7 +1209,7 @@
+         return true;
+ }
+ 
+-Ref<Array<StringBase> > parseCommandLine(String line, String in, String out)
++Ref<Array<StringBase> > parseCommandLine(String line, String in, String out, float seconds)
+ {
+     Ref<Array<StringBase> > params = split_string(line, ' ');
+     if ((in == nil) && (out == nil))
+@@ -1220,6 +1220,9 @@
+         String param = params->get(i);
+         String newParam = param.replace(_("%in"), in);
+         newParam = newParam.replace(_("%out"), out);
++        char buf[30];
++        sprintf(buf, "%f", seconds);
++        newParam = newParam.replace(_("%seconds"), _(buf));
+         if (param != newParam)
+             params->set(newParam, i);
+     }
+Index: src/url_request_handler.h
+===================================================================
+--- src/url_request_handler.h	(revision 2102)
++++ src/url_request_handler.h	(working copy)
+@@ -43,7 +43,9 @@
+     virtual void get_info(IN const char *filename, OUT struct File_Info *info);
+     virtual zmm::Ref<IOHandler> open(IN const char *filename, 
+                                      OUT struct File_Info *info, 
+-                                     IN enum UpnpOpenFileMode mode);
++                                     IN enum UpnpOpenFileMode mode,
++                                     IN int header_count,
++                                     IN const UpnpHTTPHeader *headers);
+ };
+ 
+ #endif // __URL_REQUEST_HANDLER_H__
+Index: src/file_request_handler.h
+===================================================================
+--- src/file_request_handler.h	(revision 2102)
++++ src/file_request_handler.h	(working copy)
+@@ -42,7 +42,9 @@
+     FileRequestHandler();
+     virtual void get_info(IN const char *filename, OUT struct File_Info *info);
+     virtual zmm::Ref<IOHandler> open(IN const char *filename, OUT struct File_Info *info, 
+-            IN enum UpnpOpenFileMode mode);
++            IN enum UpnpOpenFileMode mode,
++            IN int header_count,
++            IN const UpnpHTTPHeader *headers);
+ };
+ 
+ 
+Index: src/cds_resource_manager.cc
+===================================================================
+--- src/cds_resource_manager.cc	(revision 2102)
++++ src/cds_resource_manager.cc	(working copy)
+@@ -216,6 +216,10 @@
+ 
+             String targetMimeType = tp->getTargetMimeType();
+ 
++            if (tp->isSeekable()) {
++                t_res->addOption(_(RESOURCE_OPTION_SEEKABLE), _("true"));
++            }
++
+             if (!tp->isThumbnail())
+             {
+                 // duration should be the same for transcoded media, so we can 
+@@ -461,9 +465,13 @@
+             }
+ 
+ #ifdef EXTERNAL_TRANSCODING
++        // This profile supports time-based seeking, so 10
++        if (!isExtThumbnail && transcoded && string_ok(item->getResource(i)->getOption(_(RESOURCE_OPTION_SEEKABLE))))
++            extend = extend + D_OP + "=10;" +
++                     D_CONVERSION_INDICATOR + "=" D_CONVERSION;
+         // we do not support seeking at all, so 00
+         // and the media is converted, so set CI to 1
+-        if (!isExtThumbnail && transcoded)
++        else if (!isExtThumbnail && transcoded)
+         {
+             extend = extend + D_OP + "=00;" + 
+                      D_CONVERSION_INDICATOR + "=" D_CONVERSION;
+Index: src/web_callbacks.cc
+===================================================================
+--- src/web_callbacks.cc	(revision 2102)
++++ src/web_callbacks.cc	(working copy)
+@@ -190,12 +190,13 @@
+ /// \return UpnpWebFileHandle A valid file handle.
+ /// \return NULL Error.
+ static UpnpWebFileHandle web_open(IN const char *filename, OUT struct File_Info *info,
+-                                  IN enum UpnpOpenFileMode mode)
++                                  IN enum UpnpOpenFileMode mode,
++                                  IN int header_count, IN const UpnpHTTPHeader *headers)
+ {
+     try
+     {
+         Ref<RequestHandler> reqHandler = create_request_handler(filename);
+-        Ref<IOHandler> ioHandler = reqHandler->open(filename, info, mode);
++        Ref<IOHandler> ioHandler = reqHandler->open(filename, info, mode, header_count, headers);
+         ioHandler->retain();
+         return (UpnpWebFileHandle) ioHandler.getPtr();
+     }
+Index: src/file_request_handler.cc
+===================================================================
+--- src/file_request_handler.cc	(revision 2102)
++++ src/file_request_handler.cc	(working copy)
+@@ -332,17 +332,35 @@
+     log_debug("web_get_info(): end\n");
+ }
+ 
+-Ref<IOHandler> FileRequestHandler::open(IN const char *filename, OUT struct File_Info *info, IN enum UpnpOpenFileMode mode)
++Ref<IOHandler> FileRequestHandler::open(IN const char *filename, OUT struct File_Info *info, IN enum UpnpOpenFileMode mode, IN int header_count, IN const UpnpHTTPHeader *headers)
+ {
+     int objectID;
+     String mimeType;
+     int ret;
+     bool is_srt = false;
++    float seekpos = 0;
+ #ifdef EXTERNAL_TRANSCODING
+     String tr_profile;
+ #endif
+ 
+     log_debug("start\n");
++
++    log_debug("opening file with %d headers:\n", header_count);
++    for (int i = 0; i < header_count; i++) {
++        char buf[30];
++        snprintf(buf, sizeof(buf), "  %%.%lds: %%.%lds\n", headers[i].name_length, headers[i].value_length);
++        log_debug(buf, headers[i].name, headers[i].value);
++        if (headers[i].name_length == 22
++                && !strncasecmp(headers[i].name, "TimeSeekRange.dlna.org", headers[i].name_length)) {
++            memset(buf, 0, sizeof(buf));
++            memcpy(buf, headers[i].value, headers[i].value_length < sizeof(buf) ? headers[i].value_length : sizeof(buf)-1);
++            if (sscanf(buf, "npt=%f", &seekpos)) {
++                log_debug("Requesting seek to %f seconds\n", seekpos);
++            } else {
++                log_debug("Could not interpret seek header; expecting npt=<time>\n");
++            }
++        }
++    }
+     struct stat statbuf;
+ 
+     // Currently we explicitly do not support UPNP_WRITE
+@@ -583,7 +601,7 @@
+         {
+             Ref<TranscodeDispatcher> tr_d(new TranscodeDispatcher());
+             Ref<TranscodingProfile> tp = ConfigManager::getInstance()->getTranscodingProfileListOption(CFG_TRANSCODING_PROFILE_LIST)->getByName(tr_profile);
+-            return tr_d->open(tp, path, RefCast(item, CdsObject), info);
++            return tr_d->open(tp, path, RefCast(item, CdsObject), info, seekpos);
+         }
+         else
+ #endif
+Index: src/request_handler.h
+===================================================================
+--- src/request_handler.h	(revision 2102)
++++ src/request_handler.h	(working copy)
+@@ -43,7 +43,9 @@
+                           OUT struct File_Info *info) = 0;
+     virtual zmm::Ref<IOHandler> open(IN const char *filename, 
+                                      OUT struct File_Info *info, 
+-                                     IN enum UpnpOpenFileMode mode) = 0;
++                                     IN enum UpnpOpenFileMode mode,
++                                     IN int header_count,
++                                     IN const UpnpHTTPHeader *headers) = 0;
+ 
+     /// \brief Splits the url into a path and parameters string. 
+     /// Only '?' and '/' separators are allowed, otherwise an exception will
+Index: src/serve_request_handler.cc
+===================================================================
+--- src/serve_request_handler.cc	(revision 2102)
++++ src/serve_request_handler.cc	(working copy)
+@@ -143,7 +143,7 @@
+ }
+ 
+ Ref<IOHandler> ServeRequestHandler::open(IN const char *filename, OUT struct File_Info *info,
+-                                         IN enum UpnpOpenFileMode mode)
++                                         IN enum UpnpOpenFileMode mode, IN int header_count, IN const UpnpHTTPHeader *headers)
+ {
+     struct stat statbuf;
+     int ret = 0;
+Index: src/tools.h
+===================================================================
+--- src/tools.h	(revision 2102)
++++ src/tools.h	(working copy)
+@@ -294,13 +294,13 @@
+ 
+ 
+ /// \brief Parses a command line, splitting the arguments into an array and
+-/// substitutes %in and %out tokens with given strings.
++/// substitutes %in, %out, and %seconds tokens with given strings.
+ ///
+ /// This function splits a string into array parts, where space is used as the 
+-/// separator. In addition special %in and %out tokens are replaced by given
+-/// strings.
++/// separator. In addition special %in, %out, and %seconds tokens are replaced
++/// by given strings.
+ /// \todo add escaping
+-zmm::Ref<zmm::Array<zmm::StringBase> > parseCommandLine(zmm::String line, zmm::String in, zmm::String out);
++zmm::Ref<zmm::Array<zmm::StringBase> > parseCommandLine(zmm::String line, zmm::String in, zmm::String out, float seconds=0);
+ 
+ /// \brief this is the mkstemp routine from glibc, the only difference is that
+ /// it does not return an fd but just the name that we could use.
+Index: src/cds_resource.h
+===================================================================
+--- src/cds_resource.h	(revision 2102)
++++ src/cds_resource.h	(working copy)
+@@ -42,6 +42,8 @@
+ /// \brief if set, overrides the OBJECT_FLAG_PROXY_URL setting for the given
+ /// resource
+ #define RESOURCE_OPTION_PROXY_URL   "prx"
++
++#define RESOURCE_OPTION_SEEKABLE    "can_seek"
+ 
+ #define RESOURCE_OPTION_FOURCC      "4cc"
+ 
+Index: src/web_request_handler.cc
+===================================================================
+--- src/web_request_handler.cc	(revision 2102)
++++ src/web_request_handler.cc	(working copy)
+@@ -242,7 +242,9 @@
+ 
+ Ref<IOHandler> WebRequestHandler::open(IN const char *filename,
+                                        OUT struct File_Info *info,
+-                                       IN enum UpnpOpenFileMode mode)
++                                       IN enum UpnpOpenFileMode mode,
++                                       IN int header_count,
++                                       IN const UpnpHTTPHeader *headers)
+ {
+     log_debug("request: %s\n", filename);
+     this->filename = filename;
+Index: src/serve_request_handler.h
+===================================================================
+--- src/serve_request_handler.h	(revision 2102)
++++ src/serve_request_handler.h	(working copy)
+@@ -42,7 +42,9 @@
+     ServeRequestHandler();
+     virtual void get_info(IN const char *filename, OUT struct File_Info *info);
+     virtual zmm::Ref<IOHandler> open(IN const char *filename,  OUT struct File_Info *info,
+-                                     IN enum UpnpOpenFileMode mode);
++                                     IN enum UpnpOpenFileMode mode,
++                                     IN int header_count,
++                                     IN const UpnpHTTPHeader *headers);
+ };
+ 
+ 
+Index: src/url_request_handler.cc
+===================================================================
+--- src/url_request_handler.cc	(revision 2102)
++++ src/url_request_handler.cc	(working copy)
+@@ -170,7 +170,7 @@
+     /// \todo transcoding for get_info
+ }
+ 
+-Ref<IOHandler> URLRequestHandler::open(IN const char *filename, OUT struct File_Info *info, IN enum UpnpOpenFileMode mode)
++Ref<IOHandler> URLRequestHandler::open(IN const char *filename, OUT struct File_Info *info, IN enum UpnpOpenFileMode mode, IN int header_count, IN const UpnpHTTPHeader *headers)
+ {
+     int objectID;
+     String mimeType;
+Index: src/web_request_handler.h
+===================================================================
+--- src/web_request_handler.h	(revision 2102)
++++ src/web_request_handler.h	(working copy)
+@@ -145,7 +145,7 @@
+     /// \param filename The requested URL
+     /// \param mode either UPNP_READ or UPNP_WRITE
+     /// \return the appropriate IOHandler for the request.
+-    virtual zmm::Ref<IOHandler> open(IN const char *filename, OUT struct File_Info *info, IN enum UpnpOpenFileMode mode);
++    virtual zmm::Ref<IOHandler> open(IN const char *filename, OUT struct File_Info *info, IN enum UpnpOpenFileMode mode, IN int header_count, IN const UpnpHTTPHeader *headers);
+     
+     /// \brief This method must be overriden by the subclasses that actually process the given request.
+     virtual void process() = 0;
+Index: tombupnp/upnp/src/genlib/net/http/webserver.c
+===================================================================
+--- tombupnp/upnp/src/genlib/net/http/webserver.c	(revision 2102)
++++ tombupnp/upnp/src/genlib/net/http/webserver.c	(working copy)
+@@ -1250,9 +1250,13 @@
+     int resp_major,
+       resp_minor;
+     xboolean alias_grabbed;
+-    int dummy;
++    int dummy, hdridx;
+     struct UpnpVirtualDirCallbacks *pVirtualDirCallback;
++    UpnpHTTPHeader *out_headers;
++    ListNode *node;
++    http_header_t *header_data;
+ 
++
+     print_http_headers( req );
+ 
+     url = &req->uri;
+@@ -1267,6 +1271,7 @@
+     finfo.http_header = NULL;
+     finfo.force_chunked = FALSE;
+     *Fp = NULL;
++    out_headers = NULL;
+     //membuffer_init( &content_type );
+     alias_grabbed = FALSE;
+     err_code = HTTP_INTERNAL_SERVER_ERROR;  // default error
+@@ -1334,13 +1339,26 @@
+ 
+     if( using_virtual_dir ) {
+         if( req->method != HTTPMETHOD_POST ) {
++            // export headers into array
++            if (req->headers.size) {
++                out_headers = calloc(req->headers.size, sizeof(UpnpHTTPHeader));
++            }
++            if (out_headers) {
++                for (node = ListHead(&(req->headers)), hdridx=0; node != NULL; node = ListNext(&(req->headers), node), hdridx++) {
++                    header_data = ( http_header_t * ) node->item;
++                    out_headers[hdridx].name = header_data->name.buf;
++                    out_headers[hdridx].name_length = header_data->name.length;
++                    out_headers[hdridx].value = header_data->value.buf;
++                    out_headers[hdridx].value_length = header_data->value.length;
++                }
++            }
+             // get file info
+             pVirtualDirCallback = &virtualDirCallback;
+             if( req->method == HTTPMETHOD_GET ) 
+             {
+                 // use urlbuf instead of filename, because the filename 
+                 // is already unescaped, but we want the escaped version
+-                *Fp = pVirtualDirCallback->open( req->urlbuf, &finfo, UPNP_READ );
++                *Fp = pVirtualDirCallback->open( req->urlbuf, &finfo, UPNP_READ, out_headers ? req->headers.size : 0, out_headers );
+                 if( *Fp == NULL )
+                 {
+                     err_code = HTTP_NOT_FOUND;
+@@ -1373,7 +1391,7 @@
+                     goto error_handler;
+                 }
+                 // get info
+-                *Fp = pVirtualDirCallback->open( filename->buf, &finfo, UPNP_READ );
++                *Fp = pVirtualDirCallback->open( filename->buf, &finfo, UPNP_READ, out_headers ? req->headers.size : 0, out_headers );
+                 if( (*Fp == NULL) || finfo.is_directory ) {
+                     err_code = HTTP_NOT_FOUND;
+                     goto error_handler;
+@@ -1589,6 +1607,9 @@
+     if( err_code != UPNP_E_SUCCESS && alias_grabbed ) {
+         alias_release( alias );
+     }
++    if (out_headers) {
++        free(out_headers);
++    }
+ 
+     return err_code;
+ }
+@@ -1632,7 +1653,7 @@
+ 
+     if( Instr && Instr->IsVirtualFile ) {
+ 
+-        Fp = virtualDirCallback.open( filename, finfo, UPNP_WRITE );
++        Fp = virtualDirCallback.open( filename, finfo, UPNP_WRITE, 0, NULL );
+         if( Fp == NULL ) {
+             return HTTP_INTERNAL_SERVER_ERROR;
+         }
+Index: tombupnp/upnp/inc/upnp.h
+===================================================================
+--- tombupnp/upnp/inc/upnp.h	(revision 2102)
++++ tombupnp/upnp/inc/upnp.h	(working copy)
+@@ -932,6 +932,15 @@
+ 
+ typedef void *UpnpWebFileHandle;
+ 
++/* An HTTP header as passed to the open() callback. */
++
++typedef struct UpnpHTTPHeader {
++    size_t name_length;
++    char *name;
++    size_t value_length;
++    char *value;
++} UpnpHTTPHeader;
++
+ /** The {\bf UpnpVirtualDirCallbacks} structure contains the pointers to
+  *  file-related callback functions a device application can register to
+  *  virtualize URLs.  
+@@ -953,9 +962,13 @@
+     IN const char *filename,       /** The name of the file to open. */ 
+     OUT struct File_Info *info,    /** Pointer to a structure to store the 
+                                        information on the file. */
+-    IN enum UpnpOpenFileMode Mode  /** The mode in which to open the file. 
++    IN enum UpnpOpenFileMode Mode, /** The mode in which to open the file. 
+                                        Valid values are {\tt UPNP_READ} or 
+                                        {\tt UPNP_WRITE}. */
++    IN int header_count,             /** The number of elements in the
++                                         headers array */
++    IN const UpnpHTTPHeader *headers /** An array of the headers
++                                         accompanying this request */
+     );
+ 
+   /** Called by the web server to perform a sequential read from an open
