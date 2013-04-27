@@ -55,9 +55,6 @@ src_prepare() {
 	# for OSX
 	sed -i -e "s|-arch x86_64||g" configure || die
 	#epatch "${FILESDIR}"/x264-x32.patch #420241
-
-	# fix crashes when compiled with gcc 4.8
-	epatch "${FILESDIR}"/${P}-gcc48.patch
 }
 
 src_configure() {
