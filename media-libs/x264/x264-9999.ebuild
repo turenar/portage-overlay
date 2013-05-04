@@ -31,7 +31,7 @@ if [ "${PV#9999}" != "${PV}" ]; then
 else
 	KEYWORDS="~alpha ~amd64 ~arm ~hppa ~ia64 ~mips ~ppc ~ppc64 ~sparc ~x86 ~amd64-fbsd ~x86-fbsd ~amd64-linux ~x86-linux ~ppc-macos ~x64-macos ~x86-macos"
 fi
-IUSE="10bit cli custom-cflags debug +interlaced pic static-libs +threads"
+IUSE="10bit custom-cflags debug +interlaced pic static-libs +threads"
 
 RDEPEND=""
 DEPEND="amd64? ( >=dev-lang/yasm-1 )
@@ -63,7 +63,6 @@ src_configure() {
 	local myconf=""
 	use 10bit && myconf+=" --bit-depth=10"
 	use debug && myconf+=" --enable-debug"
-	use cli || myconf+=" --disable-cli"
 	use interlaced || myconf+=" --disable-interlaced"
 	use static-libs && myconf+=" --enable-static"
 	use threads || myconf+=" --disable-thread"
@@ -78,6 +77,7 @@ src_configure() {
 	./configure \
 		--prefix="${EPREFIX}"/usr \
 		--libdir="${EPREFIX}"/usr/$(get_libdir) \
+		--disable-cli \
 		--disable-avs \
 		--disable-lavf \
 		--disable-swscale \
