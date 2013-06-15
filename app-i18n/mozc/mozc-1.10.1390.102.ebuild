@@ -1,28 +1,36 @@
 # Copyright 1999-2012 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/app-i18n/mozc/mozc-1.6.1187.102.ebuild,v 1.1 2012/10/02 02:47:18 naota Exp $
+# $Header: /var/cvsroot/gentoo-x86/app-i18n/mozc/mozc-1.10.1390.102.ebuild,v 1.2 2013/05/10 05:27:20 naota Exp $
 
-EAPI="4"
-PYTHON_DEPEND="2"
-inherit elisp-common eutils multilib multiprocessing python toolchain-funcs
+EAPI="5"
+PYTHON_COMPAT=( python{2_6,2_7} )
+inherit elisp-common eutils multilib multiprocessing python-single-r1 toolchain-funcs
 
 DESCRIPTION="The Mozc engine for IBus Framework"
 HOMEPAGE="http://code.google.com/p/mozc/"
 
-PROTOBUF_VER="2.4.1"
-DICT_UT_VER="20130205"
-GMOCK_VER="403"
+PROTOBUF_VER="2.5.0"
+DICT_UT_VER="20130520"
+GMOCK_VER="1.6.0"
+GTEST_VER="1.6.0"
+JSONCPP_VER="0.6.0-rc2"
 MOZC_URL="http://mozc.googlecode.com/files/${P}.tar.bz2"
 PROTOBUF_URL="http://protobuf.googlecode.com/files/protobuf-${PROTOBUF_VER}.tar.bz2"
 DICT_UT_URL="http://jaist.dl.sourceforge.net/project/mdk-ut/30-source/source/mozcdic-ut-${DICT_UT_VER}.tar.bz2"
-SRC_URI="${MOZC_URL} ${PROTOBUF_URL} dict_ut? ( ${DICT_UT_URL} )"
+GMOCK_URL="https://googlemock.googlecode.com/files/gmock-${GMOCK_VER}.zip"
+GTEST_URL="https://googletest.googlecode.com/files/gtest-${GTEST_VER}.zip"
+JSONCPP_URL="mirror://sourceforge/jsoncpp/jsoncpp-src-${JSONCPP_VER}.tar.gz"
+SRC_URI="${MOZC_URL} ${PROTOBUF_URL}
+	test? ( ${GMOCK_URL} ${GTEST_URL} ${JSONCPP_URL} )
+	dict_ut? ( ${DICT_UT_URL} )"
+
 
 LICENSE="Apache-2.0 BSD Boost-1.0 ipadic public-domain unicode"
 SLOT="0"
 KEYWORDS="~amd64 ~x86"
 IUSE_EX_DICT="+dict_ut +dict_ut_altcanna +dict_ut_zipcode +dict_ut_hatena
 dict_ut_nicodic"
-IUSE="${IUSE_EX_DICT} emacs +ibus +qt4 renderer"
+IUSE="${IUSE_EX_DICT} emacs +ibus +qt4 renderer test"
 
 REQUIRED_USE="dict_ut_altcanna? ( dict_ut )
 	dict_ut_zipcode? ( dict_ut )
@@ -40,11 +48,12 @@ RDEPEND="dev-libs/glib:2
 		dev-qt/qtgui:4
 		app-i18n/zinnia
 	)
-	"
+	${PYTHON_DEPS}"
 DEPEND="${RDEPEND}
+	~dev-libs/protobuf-2.4.1
 	virtual/pkgconfig
 	dict_ut? ( 
-		>dev-lang/ruby-1.9
+		=dev-lang/ruby-1.9*
 		app-arch/unzip
 	)
 	"
@@ -55,17 +64,26 @@ RESTRICT="test"
 
 SITEFILE=50${PN}-gentoo.el
 
-pkg_setup() {
-	python_set_active_version 2
-	python_pkg_setup
-}
-
 src_unpack() {
 	unpack $(basename ${MOZC_URL})
 
 	cd "${S}"/protobuf
 	unpack $(basename ${PROTOBUF_URL})
-	mv protobuf-${PROTOBUF_VER} files
+	mv protobuf-${PROTOBUF_VER} files || die
+
+	if use test; then
+		cd "${S}"/third_party
+		unpack $(basename ${GMOCK_URL}) $(basename ${GTEST_URL}) \
+			$(basename ${JSONCPP_URL})
+		mv gmock-${GMOCK_VER} gmock || die
+		mv gtest-${GTEST_VER} gtest || die
+		mv jsoncpp-src-${JSONCPP_VER} jsoncpp || die
+	fi
+}
+
+src_prepare() {
+	epatch "${FILESDIR}"/${P}-drop-Werror.patch
+	epatch_user
 
 	if use dict_ut; then
 		cd "${S}"
@@ -82,14 +100,14 @@ src_configure() {
 		fi
 		cd "${S}"/mozcdic-ut-${DICT_UT_VER}
 		# get official mozcdic
-		cat ../data/dictionary/dictionary*.txt > mozcdic_all.txt
+		cat ../data/dictionary_oss/dictionary*.txt > mozcdic_all.txt
 
 		# get mozcdic costlist
 		ruby19 32-* mozcdic_all.txt
 		mv mozcdic_all.txt.cost costlist
 
 		# get hinsi ID
-		cp ../data/dictionary/id.def .
+		cp ../data/dictionary_oss/id.def .
 
 		if use dict_ut_zipcode; then
 			einfo Generating zipcode dictionary...
@@ -99,9 +117,9 @@ src_configure() {
 			unzip ken_all.zip
 			unzip jigyosyo.zip
 			cp ../../dictionary/gen_zip_code_seed.py .
-			"$(PYTHON)" gen_zip_code_seed.py --zip_code=KEN_ALL.CSV \
+			"${PYTHON}" gen_zip_code_seed.py --zip_code=KEN_ALL.CSV \
 				--jigyosyo=JIGYOSYO.CSV \
-				>> ../../data/dictionary/dictionary09.txt
+				>> ../../data/dictionary_oss/dictionary09.txt
 			ruby19 get-entries.rb KEN_ALL.CSV
 			cd ..
 		fi
@@ -137,29 +155,24 @@ src_configure() {
 		ruby19 40-* mozcdic_all.txt.utmajor ut-dic2.txt.yomi
 		ruby19 36-* ut-dic2.txt.yomi.hyouki
 
-		cat *.cost mozcdic_all.txt > ut-check-va.txt
+		cd edict-katakanago/
+		sh generate-katakanago.sh
+		cd -
+
+		cat *.cost mozcdic_all.txt edict-katakanago/edict.kata.cost > ut-check-va.txt
 		ruby19 60-* ut-check-va.txt
 		ruby19 62-* ut-check-va.txt.va
 
-		cat *.cost *.va.to_ba > dictionary-ut.txt
-		cp dictionary-ut.txt ../data/dictionary/
-		sed -i \
-			"s/'..\/data\/dictionary\/dictionary00.txt',/'..\/data\/dictionary\/dictionary00.txt',\n'..\/data\/dictionary\/dictionary-ut.txt',/g" \
-			../dictionary/dictionary.gyp
-		sed -i \
-			"s/'..\/<(test_data_subdir)\/dictionary00.txt',/'..\/<(test_data_subdir)\/dictionary00.txt',\n'..\/<(test_data_subdir)\/dictionary-ut.txt',/g" \
-			../dictionary/dictionary_base.gyp
-		sed -i \
-			"s/\"data\/dictionary\/dictionary00.txt,\"/\"data\/dictionary\/dictionary00.txt,\"\n\"data\/dictionary\/dictionary-ut.txt,\"/g" \
-			../prediction/suggestion_filter_test.cc
+		cat *.cost edict-katakanago/edict.kata.cost *.va.to_ba > dictionary-ut.txt
+		cat dictionary-ut.txt ../data/dictionary_oss/dictionary00.txt > dictionary00.txt
+		mv dictionary00.txt ../data/dictionary_oss/
 		
-		cd ../rewriter/
-		sed -i "s/\"Mozc\"\;/\"Mozc (+ut_dict)\"\;/g" version_rewriter.cc
+		cd ../base/
+		sed -i "s/\"Mozc\"\;/\"Mozc-UT\"\;/g" const.h
 		cd ${S}
 	fi
 	
-	local myconf="--channel_dev=0"
-	myconf+=" --server_dir=/usr/$(get_libdir)/mozc"
+	local myconf="--server_dir=/usr/$(get_libdir)/mozc"
 
 	if ! use qt4 ; then
 		myconf+=" --noqt"
@@ -170,7 +183,9 @@ src_configure() {
 		export GYP_DEFINES="${GYP_DEFINES} enable_gtk_renderer=0"
 	fi
 
-	"$(PYTHON)" build_mozc.py gyp ${myconf} || die "gyp failed"
+	# export GYP_DEFINES="${GYP_DEFINES} use_libprotobuf=1"
+
+	"${PYTHON}" build_mozc.py gyp ${myconf} || die "gyp failed"
 }
 
 src_compile() {
@@ -189,8 +204,8 @@ src_compile() {
 		mytarget="${mytarget} gui/gui.gyp:mozc_tool"
 	fi
 
-	"$(PYTHON)" build_mozc.py build_tools -c "${BUILDTYPE}" ${myjobs} || die
-	"$(PYTHON)" build_mozc.py build -c "${BUILDTYPE}" ${mytarget} ${myjobs} || die
+	V=1 "${PYTHON}" build_mozc.py build_tools -c "${BUILDTYPE}" ${myjobs} || die
+	V=1 "${PYTHON}" build_mozc.py build -c "${BUILDTYPE}" ${mytarget} ${myjobs} || die
 
 	if use emacs ; then
 		elisp-compile unix/emacs/*.el || die
@@ -198,7 +213,8 @@ src_compile() {
 }
 
 src_test() {
-	"$(PYTHON)" build_mozc.py runtests -c "${BUILDTYPE}" || die
+	tc-export CC CXX AR AS RANLIB LD
+	V=1 "${PYTHON}" build_mozc.py runtests -c "${BUILDTYPE}" || die
 }
 
 src_install() {
