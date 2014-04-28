@@ -10,7 +10,7 @@ DESCRIPTION="The Mozc engine for IBus Framework"
 HOMEPAGE="http://code.google.com/p/mozc/"
 
 PROTOBUF_VER="2.5.0"
-DICT_UT_VER="20130520"
+DICT_UT_VER="20140320"
 GMOCK_VER="1.6.0"
 GTEST_VER="1.6.0"
 JSONCPP_VER="0.6.0-rc2"
@@ -50,7 +50,6 @@ RDEPEND="dev-libs/glib:2
 	)
 	${PYTHON_DEPS}"
 DEPEND="${RDEPEND}
-	~dev-libs/protobuf-2.4.1
 	virtual/pkgconfig
 	dict_ut? ( 
 		=dev-lang/ruby-1.9*
@@ -83,6 +82,7 @@ src_unpack() {
 
 src_prepare() {
 	epatch "${FILESDIR}"/${P}-drop-Werror.patch
+    epatch "${FILESDIR}"/${PN}-ibus-1.5.4.patch
 	epatch_user
 
 	if use dict_ut; then
