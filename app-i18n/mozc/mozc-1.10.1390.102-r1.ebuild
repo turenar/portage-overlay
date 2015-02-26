@@ -10,13 +10,13 @@ DESCRIPTION="The Mozc engine for IBus Framework"
 HOMEPAGE="http://code.google.com/p/mozc/"
 
 PROTOBUF_VER="2.5.0"
-DICT_UT_VER="20140320"
+DICT_UT_VER="20140716"
 GMOCK_VER="1.6.0"
 GTEST_VER="1.6.0"
 JSONCPP_VER="0.6.0-rc2"
 MOZC_URL="http://mozc.googlecode.com/files/${P}.tar.bz2"
 PROTOBUF_URL="http://protobuf.googlecode.com/files/protobuf-${PROTOBUF_VER}.tar.bz2"
-DICT_UT_URL="http://jaist.dl.sourceforge.net/project/mdk-ut/30-source/source/mozcdic-ut-${DICT_UT_VER}.tar.bz2"
+DICT_UT_URL="http://einzbern.turenar.mydns.jp/pub/mozcdic-ut-${DICT_UT_VER}.tar.bz2"
 GMOCK_URL="https://googlemock.googlecode.com/files/gmock-${GMOCK_VER}.zip"
 GTEST_URL="https://googletest.googlecode.com/files/gtest-${GTEST_VER}.zip"
 JSONCPP_URL="mirror://sourceforge/jsoncpp/jsoncpp-src-${JSONCPP_VER}.tar.gz"
@@ -25,9 +25,10 @@ SRC_URI="${MOZC_URL} ${PROTOBUF_URL}
 	dict_ut? ( ${DICT_UT_URL} )"
 
 
-LICENSE="Apache-2.0 BSD Boost-1.0 ipadic public-domain unicode"
+LICENSE="Apache-2.0 BSD Boost-1.0 ipadic public-domain unicode dict_ut? ( GPL )"
 SLOT="0"
 KEYWORDS="~amd64 ~x86"
+USE_EXPAND="DICT_UT"
 IUSE_EX_DICT="+dict_ut +dict_ut_altcanna +dict_ut_zipcode +dict_ut_hatena
 dict_ut_nicodic"
 IUSE="${IUSE_EX_DICT} emacs +ibus +qt4 renderer test"
@@ -48,6 +49,7 @@ RDEPEND="dev-libs/glib:2
 		dev-qt/qtgui:4
 		app-i18n/zinnia
 	)
+	app-i18n/zinnia
 	${PYTHON_DEPS}"
 DEPEND="${RDEPEND}
 	virtual/pkgconfig
