@@ -12,7 +12,7 @@ IUSE="+browser +dict +games +mail +shotwell +tracker"
 
 # when unmasking for an arch
 # double check none of the deps are still masked !
-KEYWORDS="~amd64 ~x86"
+KEYWORDS="amd64 x86"
 
 # Note to developers:
 # This is a wrapper for the extra apps integrated with GNOME 3
@@ -36,7 +36,6 @@ RDEPEND="
 	>=gnome-extra/sushi-3.12.0
 	mail? ( >=mail-client/evolution-3.12.9 )
 	>=media-gfx/gnome-font-viewer-${PV}
-	>=media-gfx/gnome-photos-${PV}
 	>=media-gfx/gnome-screenshot-${PV}
 	>=media-sound/sound-juicer-${PV}
 	>=media-video/cheese-${PV}
@@ -45,12 +44,11 @@ RDEPEND="
 	>=net-misc/vino-${PV}
 	>=sys-apps/baobab-${PV}
 	>=sys-apps/gnome-disk-utility-${PV}
-	browser? ( >=www-client/epiphany-${PV} )
+	browser? ( >=www-client/epiphany-3.12 )
 
 	games? (
 		>=games-arcade/gnome-nibbles-${PV}
 		>=games-arcade/gnome-robots-${PV}
-		>=games-board/aisleriot-3.2.3.2
 		>=games-board/four-in-a-row-${PV}
 		>=games-board/gnome-chess-${PV}
 		>=games-board/gnome-mahjongg-${PV}
@@ -61,13 +59,16 @@ RDEPEND="
 		>=games-puzzle/gnome-klotski-${PV}
 		>=games-puzzle/gnome-sudoku-${PV}
 		>=games-puzzle/gnome-tetravex-${PV}
+		>=games-puzzle/hitori-${PV}
 		>=games-puzzle/lightsoff-${PV}
 		>=games-puzzle/quadrapassel-${PV}
 		>=games-puzzle/swell-foop-${PV} )
 	shotwell? ( >=media-gfx/shotwell-0.20 )
 	tracker? (
 		>=app-misc/tracker-1.2
-		>=gnome-extra/gnome-documents-${PV} )
+		>=gnome-extra/gnome-documents-${PV}
+		>=media-gfx/gnome-photos-${PV}
+		>=media-sound/gnome-music-${PV} )
 "
 DEPEND=""
 S=${WORKDIR}
