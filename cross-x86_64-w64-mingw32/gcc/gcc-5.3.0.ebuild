@@ -27,6 +27,7 @@ KEYWORDS="~amd64 ~x86"
 RDEPEND=""
 DEPEND="${RDEPEND}
 	elibc_glibc? ( >=sys-libs/glibc-2.8 )
+	thread_posix? ( ${CATEGORY}/mingw64-runtime[libraries] )
 	>=${CATEGORY}/binutils-2.20"
 
 if [[ ${CATEGORY} != cross-* ]] ; then
@@ -34,7 +35,9 @@ if [[ ${CATEGORY} != cross-* ]] ; then
 fi
 
 IUSE="${IUSE} thread_posix +thread_win32"
-REQUIRED_USE+="^^ ( thread_posix thread_win32 )"
+REQUIRED_USE+="
+	^^ ( thread_posix thread_win32 )
+	crosscompile_opts_headers? ( !thread_posix )"
 
 if [[ $(tc-arch) == amd64 ]]; then
 	IUSE="${IUSE} +ehtype_seh"
