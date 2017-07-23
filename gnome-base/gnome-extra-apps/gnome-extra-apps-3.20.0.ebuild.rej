@@ -1,0 +1,11 @@
+--- gnome-extra-apps-3.18.0-r1.ebuild	2016-06-12 04:37:23.000000000 +0900
++++ gnome-extra-apps-3.18.0-r1.ebuild	2016-06-17 16:07:38.129513186 +0900
+@@ -36,7 +36,7 @@
+ 	>=gnome-extra/gucharmap-${PV}:2.90
+ 	>=gnome-extra/nautilus-sendto-3.8.2
+ 	>=gnome-extra/sushi-${PV}
+-	>=mail-client/evolution-${PV}
++	mail? ( >=mail-client/evolution-${PV} )
+ 	>=media-gfx/gnome-font-viewer-3.16.2
+ 	>=media-gfx/gnome-screenshot-${PV}
+ 	>=media-sound/sound-juicer-${PV}
