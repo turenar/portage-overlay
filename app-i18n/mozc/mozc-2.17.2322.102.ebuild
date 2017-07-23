@@ -1,53 +1,59 @@
 # Copyright 1999-2015 Gentoo Foundation
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-x86/app-i18n/mozc/mozc-2.16.2037.102.ebuild,v 1.1 2015/02/25 07:27:12 naota Exp $
+# $Id$
 
 EAPI="5"
-PYTHON_COMPAT=( python{2_6,2_7} )
-inherit elisp-common eutils multilib multiprocessing python-single-r1 toolchain-funcs
+PYTHON_COMPAT=( python2_7 )
+PLOCALES="de ja zh_CN zh_TW"
+inherit elisp-common eutils l10n multilib multiprocessing python-single-r1 toolchain-funcs
 
 DESCRIPTION="The Mozc engine for IBus Framework"
-HOMEPAGE="http://code.google.com/p/mozc/"
+HOMEPAGE="https://github.com/google/mozc"
 
 PROTOBUF_VER="2.5.0"
 GMOCK_VER="1.6.0"
 GTEST_VER="1.6.0"
 JSONCPP_VER="0.6.0-rc2"
 GYP_DATE="20140602"
+ZINNIA_REV="814a49b"
 JAPANESE_USAGE_DICT_VER="10"
-DICT_UT_VER="20150214"
-MOZC_URL="http://dev.gentoo.org/~naota/files/${P}.tar.bz2"
-PROTOBUF_URL="http://protobuf.googlecode.com/files/protobuf-${PROTOBUF_VER}.tar.bz2"
+NEOLOGD_UT_VER="20160303.1"
+FCITX_PATCH_BASE_VER="2.17.2313.102"
+FCITX_PATCH_VER="1"
+#FCITX_PATCH="fcitx-mozc-${PV}.${FCITX_PATCH_VER}.patch"
+FCITX_PATCH="fcitx-mozc-${FCITX_PATCH_BASE_VER}.${FCITX_PATCH_VER}.patch"
+#MOZC_URL="https://dev.gentoo.org/~naota/files/${P}.tar.bz2"
+MOZC_URL="https://turenar.xyz/pub/${P}.tar.bz2"
+PROTOBUF_URL="https://protobuf.googlecode.com/files/protobuf-${PROTOBUF_VER}.tar.bz2"
 GMOCK_URL="https://googlemock.googlecode.com/files/gmock-${GMOCK_VER}.zip"
 GTEST_URL="https://googletest.googlecode.com/files/gtest-${GTEST_VER}.zip"
 JSONCPP_URL="mirror://sourceforge/jsoncpp/jsoncpp-src-${JSONCPP_VER}.tar.gz"
-GYP_URL="http://dev.gentoo.org/~naota/files/gyp-${GYP_DATE}.tar.bz2"
-JAPANESE_USAGE_DICT_URL="http://dev.gentoo.org/~naota/files/japanese-usage-dictionary-${JAPANESE_USAGE_DICT_VER}.tar.bz2"
-DICT_UT_URL="http://einzbern.turenar.mydns.jp/pub/mozcdic-ut-${DICT_UT_VER}.tar.bz2"
-
+GYP_URL="https://dev.gentoo.org/~naota/files/gyp-${GYP_DATE}.tar.bz2"
+ZINNIA_URL="https://turenar.xyz/pub/zinnia-${ZINNIA_REV}.tar.gz"
+JAPANESE_USAGE_DICT_URL="https://dev.gentoo.org/~naota/files/japanese-usage-dictionary-${JAPANESE_USAGE_DICT_VER}.tar.bz2"
+NEOLOGD_UT_URL="https://turenar.xyz/pub/mozcdic-neologd-ut-${NEOLOGD_UT_VER}.tar.bz2"
+FCITX_PATCH_URL="http://download.fcitx-im.org/fcitx-mozc/${FCITX_PATCH}"
 SRC_URI="${MOZC_URL} ${PROTOBUF_URL} ${GYP_URL} ${JAPANESE_USAGE_DICT_URL}
+	${ZINNIA_URL}
+	fcitx? ( ${FCITX_PATCH_URL} )
 	test? ( ${GMOCK_URL} ${GTEST_URL} ${JSONCPP_URL} )
-	dict_ut? ( ${DICT_UT_URL} )"
+	dict_neologd? ( ${NEOLOGD_UT_URL} )"
 
 LICENSE="BSD ipadic public-domain unicode"
 SLOT="0"
 KEYWORDS="~amd64 ~x86"
-IUSE_EX_DICT="+dict_ut +dict_ut_altcanna +dict_ut_ejdic +dict_ut_zipcode +dict_ut_hatena dict_ut_nicodic"
-IUSE="${IUSE_EX_DICT} emacs +ibus +qt4 renderer test"
+IUSE="dict_neologd emacs fcitx +ibus +qt4 renderer test"
 
-REQUIRED_USE="dict_ut_altcanna? ( dict_ut )
-	dict_ut_ejdic? ( dict_ut )
-	dict_ut_zipcode? ( dict_ut )
-	dict_ut_hatena? ( dict_ut )
-	dict_ut_nicodic? ( dict_ut )"
-
-
-RDEPEND="dev-libs/glib:2
-	dev-libs/openssl
+RDEPEND="app-i18n/tegaki-zinnia-japanese
+	dev-libs/glib:2
 	>=dev-libs/protobuf-2.5.0
 	x11-libs/libxcb
 	emacs? ( virtual/emacs )
-	ibus? ( >=app-i18n/ibus-1.4.1 )
+	fcitx? ( app-i18n/fcitx )
+	ibus? (
+		>=app-i18n/ibus-1.4.1
+		qt4? ( app-i18n/ibus-qt )
+	)
 	renderer? ( x11-libs/gtk+:2 )
 	qt4? (
 		dev-qt/qtgui:4
@@ -55,31 +61,41 @@ RDEPEND="dev-libs/glib:2
 	)
 	${PYTHON_DEPS}"
 DEPEND="${RDEPEND}
-	dict_ut? ( 
-		=dev-lang/ruby-1.9*
-		app-arch/unzip
-	)
-
 	dev-util/ninja
-	virtual/pkgconfig"
+	virtual/pkgconfig
+	dict_neologd? ( dev-lang/ruby )"
 
 BUILDTYPE="${BUILDTYPE:-Release}"
 
 RESTRICT="test"
 
 SITEFILE=50${PN}-gentoo.el
+S="${S}/src"
 
 src_unpack() {
 	unpack $(basename ${MOZC_URL})
 
 	unpack $(basename ${GYP_URL})
 	unpack $(basename ${JAPANESE_USAGE_DICT_URL})
+	#unpack $(basename ${ZINNIA_URL})
+	test -d "${S}/third_party" || mkdir "${S}/third_party"
+	test -d "${S}/third_party/gyp" && rm -rf "${S}/third_party/gyp"
 	mv gyp-${GYP_DATE} "${S}"/third_party/gyp || die
+	test -d "${S}/third_party/japanese_usage_dictionary" && rm -rf "${S}/third_party/japanese_usage_dictionary"
 	mv japanese-usage-dictionary-${JAPANESE_USAGE_DICT_VER} "${S}"/third_party/japanese_usage_dictionary || die
+	test -d "${S}/third_party/zinnia" && rm -rf "${S}/third_party/zinnia"
+	mv zinnia-${ZINNIA_REV} "${S}/third_party/zinnia" || die
 
+	test -d "${S}/protobuf" || mkdir "${S}/protobuf"
 	cd "${S}"/protobuf
 	unpack $(basename ${PROTOBUF_URL})
 	mv protobuf-${PROTOBUF_VER} files || die
+
+	if use dict_neologd; then
+		cd "${S}"
+		neologd_ut_basename="$(basename ${NEOLOGD_UT_URL})"
+		unpack ${neologd_ut_basename}
+	fi
 
 	if use test; then
 		cd "${S}"/third_party
@@ -92,107 +108,28 @@ src_unpack() {
 }
 
 src_prepare() {
+	if use dict_neologd; then
+		neologd_ut_basename="$(basename ${NEOLOGD_UT_URL})"
+		cd "${S}"/${neologd_ut_basename%.tar.bz2}
+		epatch ${FILESDIR}/neologd-build.patch
+		sed -i -e '1,10s|MOZCVER=".\+"|MOZCVER="'${PV}'"|' generate-mozc-neologd-ut.sh
+		./generate-mozc-neologd-ut.sh
+		cd "${S}"
+	fi
 	# verbose build
 	sed -i -e "/RunOrDie(\[make_command\]/s/build_args/build_args + [\"-v\"]/" \
 		build_mozc.py || die
 	sed -i -e "s/<!(which clang)/$(tc-getCC)/" \
 		-e "s/<!(which clang++)/$(tc-getCXX)/" \
 		gyp/common.gypi || die
-
-	if use dict_ut; then
-		cd "${S}"
-		unpack $(basename ${DICT_UT_URL})
+	if use fcitx; then
+		EPATCH_OPTS="-p2" epatch "${DISTDIR}/${FCITX_PATCH}"
 	fi
-
 	epatch_user
 }
 
 src_configure() {
 	local myconf="--server_dir=/usr/$(get_libdir)/mozc"
-
-	if use dict_ut; then
-		elog "Enabling Mozc-UT Dictionary..."
-		if use dict_ut_nicodic; then
-			ewarn " Enabling dict_ut_nicodic use flag,"
-			ewarn " you will be unable to redistribute this package."
-		fi
-		cd "${S}"/mozcdic-ut-${DICT_UT_VER}
-		# get official mozcdic
-		cat ../data/dictionary_oss/dictionary*.txt > mozcdic_all.txt
-
-		# get mozcdic costlist
-		ruby19 32-* mozcdic_all.txt
-		mv mozcdic_all.txt.cost costlist
-
-		# get hinsi ID
-		cp ../data/dictionary_oss/id.def .
-
-		if use dict_ut_zipcode; then
-			einfo Generating zipcode dictionary...
-			cd chimei
-			wget http://www.post.japanpost.jp/zipcode/dl/kogaki/zip/ken_all.zip
-			wget http://www.post.japanpost.jp/zipcode/dl/jigyosyo/zip/jigyosyo.zip
-			unzip ken_all.zip
-			unzip jigyosyo.zip
-			cp ../../dictionary/gen_zip_code_seed.py .
-			"${PYTHON}" gen_zip_code_seed.py --zip_code=KEN_ALL.CSV \
-				--jigyosyo=JIGYOSYO.CSV \
-				>> ../../data/dictionary_oss/dictionary09.txt
-			ruby19 get-entries.rb KEN_ALL.CSV
-			cd ..
-		fi
-		einfo "check major ut dictionaries..."
-		ruby19 12-* altcanna/altcanna.txt 300
-		ruby19 12-* jinmei/jinmei.txt 20
-		ruby19 12-* ekimei/ekimei.txt 300
-		ruby19 12-* chimei/chimei.txt 300
-
-		cat altcanna/altcanna.txt.r jinmei/jinmei.txt.r ekimei/ekimei.txt.r \
-			chimei/chimei.txt.r > ut-dic1.txt
-
-		ruby19 44-* mozcdic_all.txt ut-dic1.txt
-		ruby19 36-* ut-dic1.txt.yomihyouki
-		cat ut-dic1.txt.yomihyouki.cost mozcdic_all.txt > mozcdic_all.txt.utmajor
-
-		einfo "check minor ut dictionaries..."
-		ruby19 12-* skk/skk.txt 300
-		if use dict_ut_ejdic; then
-			ruby19 12-* edict/edict.txt 300
-		fi
-		if use dict_ut_hatena; then
-			ruby19 12-* hatena/hatena.txt 30
-		fi
-		if use dict_ut_nicodic; then
-			ruby19 12-* niconico/niconico.txt 300
-		fi
-
-		cat skk/skk.txt.r edict/edict.txt.r \
-			$(use dict_ut_hatena && echo hatena/hatena.txt.r) \
-			$(use dict_ut_nicodic && echo niconico/niconico.txt.r) \
-			> ut-dic2.txt
-
-		ruby19 42-* mozcdic_all.txt.utmajor ut-dic2.txt
-		ruby19 40-* mozcdic_all.txt.utmajor ut-dic2.txt.yomi
-		ruby19 36-* ut-dic2.txt.yomi.hyouki
-
-		cd edict-katakanago/
-		sh generate-katakanago.sh
-		cd -
-
-		cat *.cost mozcdic_all.txt edict-katakanago/edict.kata.cost > ut-check-va.txt
-		ruby19 60-* ut-check-va.txt
-		ruby19 62-* ut-check-va.txt.va
-
-		cat *.cost edict-katakanago/edict.kata.cost *.va.to_ba > dictionary-ut.txt
-		cat dictionary-ut.txt ../data/dictionary_oss/dictionary00.txt > dictionary00.txt
-		mv dictionary00.txt ../data/dictionary_oss/
-
-		cd ../base/
-		sed -i "s/\"Mozc\"\;/\"Mozc-UT\"\;/g" const.h
-		cd ${S}
-	fi
-
-
 
 	if ! use qt4 ; then
 		myconf+=" --noqt"
@@ -219,6 +156,7 @@ src_compile() {
 
 	local mytarget="server/server.gyp:mozc_server"
 	use emacs && mytarget="${mytarget} unix/emacs/emacs.gyp:mozc_emacs_helper"
+	use fcitx && mytarget="${mytarget} unix/fcitx/fcitx.gyp:fcitx-mozc"
 	use ibus && mytarget="${mytarget} unix/ibus/ibus.gyp:ibus_mozc"
 	use renderer && mytarget="${mytarget} renderer/renderer.gyp:mozc_renderer"
 	if use qt4 ; then
@@ -227,7 +165,7 @@ src_compile() {
 	fi
 
 	# V=1 "${PYTHON}" build_mozc.py build_tools -c "${BUILDTYPE}" ${myjobs} || die
-	"${PYTHON}" build_mozc.py build -v -c "${BUILDTYPE}" ${mytarget} ${myjobs} || die
+	"${PYTHON}" build_mozc.py build -v -c "${BUILDTYPE}" ${mytarget} || die
 
 	if use emacs ; then
 		elisp-compile unix/emacs/*.el || die
@@ -238,38 +176,36 @@ src_test() {
 	tc-export CC CXX AR AS RANLIB LD
 	V=1 "${PYTHON}" build_mozc.py runtests -c "${BUILDTYPE}" || die
 }
-
 src_install() {
-	if use dict_ut; then
-		cd "${S}"/mozcdic-ut-${DICT_UT_VER}
-		newdoc altcanna/doc/README_euc.txt dict_ut_altcanna_README.txt
-		newdoc altcanna/doc/COPYING dict_ut_altcanna_COPYING
-		newdoc altcanna/doc/Changes.txt dict_ut_altcanna_Chenges.txt
-		newdoc altcanna/doc/orig-README.ja dict_ut_altcanna_orig-README.ja
-
-		if use dict_ut_zipcode; then
-			newdoc chimei/doc/README dict_ut_zipcode_README
-		fi
-		newdoc edict/doc/README dict_ut_edict_README
-		newdoc ekimei/doc/README dict_ut_ekimei_README
-		if use dict_ut_hatena; then
-			newdoc hatena/doc/README dict_ut_hatena_README
-		fi
-		newdoc jinmei/doc/AUTHORS dict_ut_jinmei_AUTHORS
-		newdoc jinmei/doc/COPYING dict_ut_jinmei_COPYING
-		if use dict_ut_nicodic; then
-			newdoc niconico/doc/README dict_ut_nicodic_README
-		fi
-		newdoc skk/doc/README dict_ut_skk_README
-		newdoc README dict_ut_README
-		newdoc ChangeLog dict_ut_ChangeLog
-		cd "${S}"
-	fi
+	install_fcitx_locale() {
+		lang=$1
+		insinto "/usr/share/locale/${lang}/LC_MESSAGES/"
+		newins out_linux/${BUILDTYPE}/gen/unix/fcitx/po/${lang}.mo fcitx-mozc.mo
+	}
 
 	if use emacs ; then
 		dobin "out_linux/${BUILDTYPE}/mozc_emacs_helper" || die
 		elisp-install ${PN} unix/emacs/*.{el,elc} || die
 		elisp-site-file-install "${FILESDIR}/${SITEFILE}" ${PN} || die
+	fi
+
+	if use fcitx; then
+		exeinto /usr/$(get_libdir)/fcitx
+		doexe "out_linux/${BUILDTYPE}/fcitx-mozc.so"
+		insinto /usr/share/fcitx/addon
+		doins "unix/fcitx/fcitx-mozc.conf"
+		insinto /usr/share/fcitx/inputmethod
+		doins "unix/fcitx/mozc.conf"
+		insinto /usr/share/fcitx/mozc/icon
+		(
+			cd data/images
+			newins product_icon_32bpp-128.png mozc.png
+			cd unix
+			for f in ui-* ; do
+				newins ${f} mozc-${f/ui-}
+			done
+		)
+		l10n_for_each_locale_do install_fcitx_locale
 	fi
 
 	if use ibus ; then

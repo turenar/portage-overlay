@@ -1,0 +1,133 @@
+--- generate-mozc-neologd-ut.sh.bak	2016-03-23 17:13:33.390962303 +0900
++++ generate-mozc-neologd-ut.sh	2016-03-23 18:43:56.800612503 +0900
+@@ -9,19 +9,19 @@
+ # remove tmp files
+ ##################################################
+ 
+-rm -rf ../mozc-$MOZCVER/
+-rm -rf ../mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION/
+-rm -f ../mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION.tar*
+-rm -f chimei/*.txt*
+-rm -f chimei/*.CSV*
+-rm -f costlist.txt
+-rm -f id.def
+-rm -f mecab-user-dict-seed*
+-rm -f mozcdic*
+-rm -f neologd*
+-rm -f *.CSV*
+-rm -f *.zip
+-rm -f *.py
++#rm -rf ../mozc-$MOZCVER/
++#rm -rf ../mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION/
++#rm -f ../mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION.tar*
++#rm -f chimei/*.txt*
++#rm -f chimei/*.CSV*
++#rm -f costlist.txt
++#rm -f id.def
++#rm -f mecab-user-dict-seed*
++#rm -f mozcdic*
++#rm -f neologd*
++#rm -f *.CSV*
++#rm -f *.zip
++#rm -f *.py
+ 
+ 
+ ##################################################
+@@ -29,21 +29,21 @@
+ ##################################################
+ 
+ # unpack official mozc
+-echo "unpack official mozc..."
++#echo "unpack official mozc..."
+ 
+-cd ..
+-tar xf mozc-$MOZCVER.tar.bz2
+-cd -
++#cd ..
++#tar xf mozc-$MOZCVER.tar.bz2
++#cd -
+ 
+ # get official mozcdic
+-cat ../mozc-$MOZCVER/data/dictionary_oss/dictionary*.txt > mozcdic.txt
++cat ../data/dictionary_oss/dictionary*.txt > mozcdic.txt
+ 
+ # get mozcdic costlist.txt
+ echo "get base cost..."
+ ruby 01-get-mozc-cost.rb mozcdic.txt
+ 
+ # get hinsi ID
+-cp ../mozc-$MOZCVER/data/dictionary_oss/id.def .
++cp ../data/dictionary_oss/id.def .
+ 
+ # extract mecab-user-dict-seed
+ cp mecab-ipadic-neologd/mecab-user-dict-seed.$DICVER.csv.xz .
+@@ -61,7 +61,7 @@
+ wget http://www.post.japanpost.jp/zipcode/dl/jigyosyo/zip/jigyosyo.zip
+ unzip ken_all.zip
+ unzip jigyosyo.zip
+-cp ../../mozc-$MOZCVER/dictionary/gen_zip_code_seed.py .
++cp ../../dictionary/gen_zip_code_seed.py .
+ 
+ # modify zip code data
+ echo "modify zip code data..."
+@@ -70,7 +70,7 @@
+ # generate zip code entries
+ echo "generate zip code entries..."
+ python2 gen_zip_code_seed.py --zip_code=KEN_ALL.CSV.r --jigyosyo=JIGYOSYO.CSV >> \
+-../../mozc-$MOZCVER/data/dictionary_oss/dictionary09.txt
++../../data/dictionary_oss/dictionary09.txt
+ 
+ # generate chimei.txt
+ echo "generate placenames..."
+@@ -90,33 +90,33 @@
+ mv mozcdic-neologd-ut.txt.jinmei mozcdic-neologd-ut.txt
+ 
+ # install mozcdic-neologd-ut
+-cat mozcdic-neologd-ut.txt ../mozc-$MOZCVER/data/dictionary_oss/dictionary00.txt > dictionary00.txt
+-mv dictionary00.txt ../mozc-$MOZCVER/data/dictionary_oss/
++cat mozcdic-neologd-ut.txt ../data/dictionary_oss/dictionary00.txt > dictionary00.txt
++mv dictionary00.txt ../data/dictionary_oss/
+ 
+ # change mozc branding
+-cd ../mozc-$MOZCVER/base/
++cd ../base/
+ sed -i "s/\"Mozc\"/\"Mozc-NEologd-UT\"/g" const.h
+ cd -
+ 
+ # install docs
+-mkdir -p ../mozc-$MOZCVER/docs/mecab-ipadic-neologd
+-cp mecab-ipadic-neologd/C* ../mozc-$MOZCVER/docs/mecab-ipadic-neologd/
+-cp mecab-ipadic-neologd/R* ../mozc-$MOZCVER/docs/mecab-ipadic-neologd/
+-
+-mkdir -p ../mozc-$MOZCVER/docs/mozcdic-neologd-ut
+-cp A* ../mozc-$MOZCVER/docs/mozcdic-neologd-ut/
+-cp C* ../mozc-$MOZCVER/docs/mozcdic-neologd-ut/
+-cp R* ../mozc-$MOZCVER/docs/mozcdic-neologd-ut/
++mkdir -p ../docs/mecab-ipadic-neologd
++cp mecab-ipadic-neologd/C* ../docs/mecab-ipadic-neologd/
++cp mecab-ipadic-neologd/R* ../docs/mecab-ipadic-neologd/
++
++mkdir -p ../docs/mozcdic-neologd-ut
++cp A* ../docs/mozcdic-neologd-ut/
++cp C* ../docs/mozcdic-neologd-ut/
++cp R* ../docs/mozcdic-neologd-ut/
+ 
+ # install PKGBUILD
+-cp PKGBUILD ../mozc-$MOZCVER/
++#cp PKGBUILD ../mozc-$MOZCVER/
+ 
+ # rename mozc dir to mozc-neologd-ut
+-cd ..
+-mv mozc-$MOZCVER mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION
++#cd ..
++#mv mozc-$MOZCVER mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION
+ 
+ # compress mozc-neologd-ut
+-echo "compress mozc-neologd-ut..."
+-tar cf mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION.tar mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION
+-XZ_OPT="--threads=0" xz -f mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION.tar
+-cd -
++#echo "compress mozc-neologd-ut..."
++#tar cf mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION.tar mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION
++#XZ_OPT="--threads=0" xz -f mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION.tar
++#cd -

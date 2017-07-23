@@ -1,0 +1,52 @@
+--- a/generate-dictionary.sh	2017-07-23 01:08:11.757626804 +0900
++++ b/generate-dictionary.sh	2017-07-23 01:11:35.200488120 +0900
+@@ -6,33 +6,9 @@
+ 
+ 
+ # ==============================================================================
+-# remove tmp files
+-# ==============================================================================
+-
+-rm -rf ../mozc-$MOZCVER/
+-rm -rf ../mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION/
+-rm -f ../mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION.tar*
+-rm -f chimei/*.txt*
+-rm -f chimei/*.zip
+-rm -f chimei/*.CSV*
+-rm -f chimei/*.py
+-rm -f src/id.def
+-rm -f src/mecab-user-dict-seed*
+-rm -f src/mozcdic*
+-rm -f src/neologd*
+-
+-
+-# ==============================================================================
+ # generate placenames and ZIP codes
+ # ==============================================================================
+ 
+-# unpack official mozc
+-echo "unpack official mozc..."
+-
+-cd ..
+-tar xf mozc-$MOZCVER.tar.bz2
+-cd -
+-
+ # get hinsi ID
+ cp ../mozc-$MOZCVER/src/data/dictionary_oss/id.def src/
+ 
+@@ -108,15 +84,3 @@
+ mkdir -p ../mozc-$MOZCVER/docs-ut/mecab-ipadic-neologd
+ cp mecab-ipadic-neologd/{COPYING,ChangeLog,README.ja.md,README.md} ../mozc-$MOZCVER/docs-ut/mecab-ipadic-neologd/
+ cp {AUTHORS,COPYING,ChangeLog,README.md} ../mozc-$MOZCVER/docs-ut/
+-
+-# install PKGBUILD
+-cp PKGBUILD ../mozc-$MOZCVER/
+-
+-# rename mozc dir to mozc-neologd-ut
+-cd ..
+-mv mozc-$MOZCVER mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION
+-
+-# compress mozc-neologd-ut
+-echo "compress mozc-neologd-ut..."
+-tar cf mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION.tar mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION
+-XZ_OPT="--threads=0" xz -f mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION.tar
