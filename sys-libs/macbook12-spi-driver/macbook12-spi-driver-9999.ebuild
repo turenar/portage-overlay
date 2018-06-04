@@ -9,7 +9,7 @@ DESCRIPTION=""
 HOMEPAGE="https://github.com/roadrunner2/macbook12-spi-driver"
 
 EGIT_REPO_URI="https://github.com/roadrunner2/macbook12-spi-driver.git"
-EGIT_BRANCH="touchbar-driver-hid-driver"
+#EGIT_BRANCH="touchbar-driver-hid-driver"
 
 HWDB_GIST_REPO="1289542a748d9a104e7baec6a92f9cd7"
 HWDB_GIST_COMMIT="1e11088843900223e18f9d16509c5419b96cb8a8"
