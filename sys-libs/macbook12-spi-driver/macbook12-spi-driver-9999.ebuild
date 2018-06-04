@@ -28,7 +28,6 @@ MODULE_NAMES="applespi(misc:${S}) appletb(misc:${S})"
 
 pkg_setup() {
 	CONFIG_CHECK="SPI_PXA2XX MFD_INTEL_LPSS_PCI"
-	ERROR_TRIM_UNUSED_KSYMS="The kernel option CONFIG_TRIM_UNUSED_KSYMS removed kernel symbols that are needed by ${PN} to load correctly."
 
 	linux-mod_pkg_setup
 
