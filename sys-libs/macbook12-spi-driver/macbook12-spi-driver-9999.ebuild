@@ -24,10 +24,10 @@ RDEPEND=""
 
 BUILD_TARGETS="all"
 BUILD_TARGET_ARCH="${ARCH}"
-MODULE_NAMES="applespi(misc:${S}) appletb(misc:${S})"
+MODULE_NAMES="applespi(misc:${S}) apple-ibridge(misc:${S}) apple-ib-tb(misc:${S}) apple-ib-als(misc:${S})"
 
 pkg_setup() {
-	CONFIG_CHECK="SPI_PXA2XX MFD_INTEL_LPSS_PCI"
+	CONFIG_CHECK="SPI_PXA2XX MFD_INTEL_LPSS_PCI IIO_TRIGGER"
 
 	linux-mod_pkg_setup
 
