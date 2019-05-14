@@ -27,7 +27,7 @@ BUILD_TARGET_ARCH="${ARCH}"
 MODULE_NAMES="applespi(misc:${S}) apple-ibridge(misc:${S}) apple-ib-tb(misc:${S}) apple-ib-als(misc:${S})"
 
 pkg_setup() {
-	CONFIG_CHECK="SPI_PXA2XX MFD_INTEL_LPSS_PCI IIO_TRIGGER"
+	CONFIG_CHECK="SPI_PXA2XX MFD_INTEL_LPSS_PCI IIO_TRIGGERED_BUFFER"
 
 	linux-mod_pkg_setup
 
@@ -52,6 +52,13 @@ src_install() {
 
 pkg_postinst() {
 	linux-mod_pkg_postinst
+
+	if test -e "${EROOT}lib/modules/${KV_FULL}/misc/appletb.ko"; then
+		ewarn ""
+		ewarn "You must remove ${EROOT}lib/modules/${KV_FULL}/misc/appletb.ko"
+		ewarn " and migrate from appletb to apple-ib-tb in modprobe.conf,"
+		ewarn " otherwise you see unexpected behavior."
+	fi
 
 	if use hwdb; then
 		if use systemd; then
