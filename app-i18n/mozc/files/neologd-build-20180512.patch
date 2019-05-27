@@ -1,16 +1,16 @@
---- a/generate-dictionary.sh	2017-07-23 01:08:11.757626804 +0900
-+++ b/generate-dictionary.sh	2017-07-23 01:11:35.200488120 +0900
-@@ -6,33 +6,9 @@
+--- generate-dictionary.sh	2018-03-07 14:50:27.000000000 +0900
++++ generate-dictionary.sh	2018-05-12 12:47:03.340282961 +0900
+@@ -6,32 +6,9 @@
  
  
  # ==============================================================================
 -# remove tmp files
--# ==============================================================================
--
++# filter entries
+ # ==============================================================================
+ 
 -rm -rf ../mozc-$MOZCVER/
 -rm -rf ../mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION/
 -rm -f ../mozc-neologd-ut-$MOZCVER.$DICVER.$REVISION.tar*
--rm -f chimei/*.txt*
 -rm -f chimei/*.zip
 -rm -f chimei/*.CSV*
 -rm -f chimei/*.py
@@ -18,26 +18,26 @@
 -rm -f src/mecab-user-dict-seed*
 -rm -f src/mozcdic*
 -rm -f src/neologd*
+-rm -f src/zipcode.costs
 -
 -
 -# ==============================================================================
- # generate placenames and ZIP codes
- # ==============================================================================
- 
--# unpack official mozc
--echo "unpack official mozc..."
+-# extract official mozc and filter entries
+-# ==============================================================================
 -
+-# extract official mozc
+-echo "extract official mozc..."
 -cd ..
 -tar xf mozc-$MOZCVER.tar.bz2
 -cd -
 -
- # get hinsi ID
- cp ../mozc-$MOZCVER/src/data/dictionary_oss/id.def src/
+ echo "filter mozc entries..."
+ cd src/
+ ruby filter-mozc-entries.rb ../../mozc-$MOZCVER/src/data/dictionary_oss/dictionary00.txt &
+@@ -141,15 +118,3 @@
  
-@@ -108,15 +84,3 @@
- mkdir -p ../mozc-$MOZCVER/docs-ut/mecab-ipadic-neologd
- cp mecab-ipadic-neologd/{COPYING,ChangeLog,README.ja.md,README.md} ../mozc-$MOZCVER/docs-ut/mecab-ipadic-neologd/
- cp {AUTHORS,COPYING,ChangeLog,README.md} ../mozc-$MOZCVER/docs-ut/
+ # install fcitx-mozc
+ cp -r fcitx-mozc/fcitx ../mozc-$MOZCVER/src/unix/
 -
 -# install PKGBUILD
 -cp PKGBUILD ../mozc-$MOZCVER/
