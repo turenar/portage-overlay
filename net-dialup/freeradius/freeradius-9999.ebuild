@@ -150,6 +150,17 @@ src_prepare() {
 	usesqldriver sqlite
 
 	eautoreconf
+	for subdir in src/modules/*/; do
+		if [ -e "${subdir}/configure" ]; then
+			cd "${subdir}"
+			elog "in ${subdir}"
+			if grep "^AC_CONFIG_HEADER" configure.ac > /dev/null; then
+				eautoheader -I${S} || die
+			fi
+			eautoconf -I${S} || die
+			cd "${S}"
+		fi
+	done
 }
 
 src_configure() {
