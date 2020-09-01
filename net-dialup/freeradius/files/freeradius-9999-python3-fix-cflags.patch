@@ -1,0 +1,27 @@
+diff --git a/src/modules/rlm_python/configure.ac b/src/modules/rlm_python/configure.ac
+index 9d6bd625cb..d1133fc0dc 100644
+--- a/src/modules/rlm_python/configure.ac
++++ b/src/modules/rlm_python/configure.ac
+@@ -48,13 +48,15 @@ if test x$with_[]modname != xno; then
+ 		dnl # Strip -W*, we decide what warnings are important
+ 		dnl # Strip -DNDEBUG
+ 		mod_cflags=`echo $python_cflags | sed -e '\
+-			s/-I/-isystem/g;\
+-			s/-isysroot[[ =]]\{0,1\}[[^-]]*//g;\
+-			s/-O[[^[[:blank:]]]]*//g;\
+-			s/-Wp,-D_FORTIFY_SOURCE=[[[:digit:]]]//g;\
+-			s/-g[[^ ]]*//g;\
+-			s/-W[[^ ]]*//g;\
+-			s/-DNDEBUG[[[:blank:]]]*//g;
++			s/^/ /;\
++			s/ -I/ -isystem/g;\
++			s/ -isysroot[[ =]]\{0,1\}[[^-]]*//g;\
++			s/ -O[[^[[:blank:]]]]*//g;\
++			s/ -Wp,-D_FORTIFY_SOURCE=[[[:digit:]]]//g;\
++			s/ -g[[^ ]]*//g;\
++			s/ -W[[^ ]]*//g;\
++			s/ -DNDEBUG[[[:blank:]]]*//g;\
++			s/^ //;
+ 			'`
+ 		AC_MSG_NOTICE([Sanitized cflags were \"${mod_cflags}\"])
+ 
