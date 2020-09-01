@@ -75,6 +75,7 @@ S="${WORKDIR}/${MY_P}"
 
 PATCHES=(
 	"${FILESDIR}"/${P}-systemd-service.patch
+	"${FILESDIR}"/${P}-python3-fix-cflags.patch
 )
 
 src_prepare() {
