@@ -43,7 +43,7 @@ RDEPEND="acct-group/radius
 	acct-user/radius
 	!net-dialup/cistronradius
 	dev-lang/perl:=
-	dev-libs/kqueue
+	dev-libs/libkqueue
 	sys-libs/gdbm:=
 	sys-libs/talloc
 	doc? ( dev-ruby/asciidoctor app-text/pandoc )
